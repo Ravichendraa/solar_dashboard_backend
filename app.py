@@ -240,3 +240,9 @@ def get_predicted_tariffs():
 if __name__ == '__main__':
     # Bind the Flask app to 0.0.0.0 to allow external requests
     app.run(host='0.0.0.0', port=5000, debug=True)
+
+
+
+
+
+

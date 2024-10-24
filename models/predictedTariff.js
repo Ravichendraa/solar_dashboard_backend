@@ -1,9 +1,9 @@
-class PredictedTariff {
-    constructor(hour, tariff, date) {
-        this.hour = hour;            // Hour of the day (0-23)
-        this.tariff = tariff;        // Predicted tariff value
-        this.date = date;            // Date of prediction
-    }
-}
+const mongoose = require('mongoose');
 
-module.exports = PredictedTariff;
+const predictedTariffSchema = new mongoose.Schema({
+  hour: { type: Number, required: true },
+  tariff: { type: Number, required: true },
+  date: { type: String, required: true }
+}, { timestamps: true });
+
+module.exports = mongoose.model('PredictedTariff', predictedTariffSchema);
