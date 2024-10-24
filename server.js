@@ -42,14 +42,22 @@ app.get('/api/tariffs', async (req, res) => {
 
 app.get('/api/predicted_tariffs', async (req, res) => {
   try {
-    const { date } = req.query;  // Query parameter to filter by date
+    const date = '21-10-24'; // Fixed date for the query
+
+    // Query the database for tariffs matching the specified date
     const predictions = await PredictedTariff.find({ date });
-    res.json(predictions);
+
+    if (predictions.length === 0) {
+      return res.status(404).json({ message: 'No tariff predictions found for the given date' });
+    }
+
+    res.json(predictions); // Send the fetched predictions
   } catch (error) {
     console.error('Error fetching predicted tariffs:', error);
     res.status(500).json({ error: 'Failed to fetch predicted tariffs' });
   }
 });
+
 
 
 
@@ -67,9 +75,16 @@ app.get('/api/energy-data', async (req, res) => {
 
 app.get('/api/predicted_appliance_consumption', async (req, res) => {
   try {
-    const { date } = req.query;
+    const date = '21-10-24'; // Fixed date for the query
+
+    // Query the database for records matching the specified date
     const predictions = await PredictedApplianceConsumption.find({ date });
-    res.json(predictions);
+
+    if (predictions.length === 0) {
+      return res.status(404).json({ message: 'No predictions found for the given date' });
+    }
+
+    res.json(predictions); // Send the fetched predictions
   } catch (error) {
     console.error('Error fetching appliance consumption:', error);
     res.status(500).json({ error: 'Failed to fetch appliance consumption' });
