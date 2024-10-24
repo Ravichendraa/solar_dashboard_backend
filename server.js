@@ -20,8 +20,7 @@ app.use(express.json());
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+  // Removed deprecated options
 })
   .then(() => console.log('MongoDB connected successfully.'))
   .catch((err) => {
@@ -76,9 +75,9 @@ app.get('/api/tariffs', async (req, res) => {
 
 // Serve frontend (if in production mode)
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'client/build')));
+  app.use(express.static(path.join(__dirname, '../frontend/build'))); // Adjusted path to serve frontend build
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
   });
 }
 
