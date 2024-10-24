@@ -12,7 +12,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 # Initialize Flask and enable CORS
-app = Flask(__name__)
+app = Flask(_name_)
 CORS(app)
 
 # MongoDB connection setup
@@ -132,117 +132,85 @@ def predict_and_store():
 
     return prediction_data
 
-def predict_solar_energy_and_store():
-    """Predict next 24 hours' solar energy generation and store them in MongoDB."""
-    df = fetch_energy_data()
-    if df.empty:
-        logging.error("No data fetched. Skipping prediction.")
-        return []
+# Additional energy and appliance prediction code (same as before)
 
-    # Feature engineering
-    df['Hour'] = df['sendDate'].dt.hour
-    df['DayOfWeek'] = df['sendDate'].dt.dayofweek
+# Incorporating energy optimization code
+def energy_optimization():
+    """Optimizes energy consumption based on predicted solar and tariff data."""
+    predicted_appliance_consumption_df = pd.read_csv('predicted_appliance_consumption().csv')
+    predicted_solar_energy_df = pd.read_csv('predicted_solar_energy.csv')
+    predicted_tariffs_df = pd.read_csv('predicted_tariffs.csv')
 
-    # Prepare features and target for solar energy generation
-    X = df[['Hour', 'DayOfWeek']]
-    y = df['solarEnergyGeneration']
+    # Set up constants
+    battery_capacity_kwh = 10
+    battery_threshold = 0.2 * battery_capacity_kwh
+    battery_level = battery_capacity_kwh
+    high_consumption_devices = ["Washing Machine (kWh)", "Laptop (kWh)", "Dishwasher (kWh)", "EV Charger (kWh)"]
+    scheduled_hours = {device: False for device in high_consumption_devices}
+    non_scheduled_devices = predicted_appliance_consumption_df.columns.difference(high_consumption_devices)
+    non_scheduled_hourly_consumption = predicted_appliance_consumption_df[non_scheduled_devices].sum(axis=1) / 24
 
-    # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+    # Determine the best hours to schedule high-consumption devices based on the lowest tariff
+    tariff_sorted_idx = predicted_tariffs_df.sort_values(by='tariff').index
 
-    # Train the model
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
+    # Prepare a list to store hourly data
+    hourly_status = []
 
-    # Predict for the next 24 hours
-    next_day_hours = pd.DataFrame({
-        'Hour': list(range(24)),
-        'DayOfWeek': [(df['DayOfWeek'].iloc[-1] + 1) % 7] * 24
-    })
-    predictions = model.predict(next_day_hours)
+    # Loop through each hour
+    for hour in range(24):
+        solar_energy = predicted_solar_energy_df.loc[hour, 'solar_energy_generation']
+        tariff = predicted_tariffs_df.loc[hour, 'tariff']
 
-    # Prepare data for MongoDB insertion
-    today = "21-10-2024"
-    # for live data use today = (datetime.now()).strftime("%d-%m-%Y")
-    solar_prediction_data = [
-        {'hour': i, 'solar_energy_generation': float(predictions[i]), 'date': today} for i in range(24)
-    ]
+        # Add solar energy to the battery
+        battery_level = min(battery_level + solar_energy, battery_capacity_kwh)
 
-    # Store solar predictions in MongoDB
-    try:
-        solar_prediction_collection.delete_many({'date': today})  # Clear existing data for tomorrow
-        solar_prediction_collection.insert_many(solar_prediction_data)
-        logging.info("Solar energy predictions stored successfully.")
-    except errors.PyMongoError as e:
-        logging.error("Error storing solar predictions: %s", e)
+        # Switch to solar mode when battery is available, regardless of tariff
+        in_solar_mode = tariff > 5
+        scheduled_device = None
+        if hour in tariff_sorted_idx[:len(high_consumption_devices)]:
+            for device in high_consumption_devices:
+                if not scheduled_hours[device]:
+                    scheduled_device = device
+                    scheduled_hours[device] = True
+                    break
 
-    return solar_prediction_data
+        # If a device is scheduled, do not use solar mode
+        if scheduled_device:
+            in_solar_mode = False
 
-def predict_appliance_consumption_and_store():
-    """Predict next day's appliance consumption and store it in MongoDB."""
-    df = fetch_consumption_data()
-    if df.empty:
-        logging.error("No data fetched. Skipping appliance consumption prediction.")
-        return []
+        # Calculate non-scheduled devices’ consumption for the hour
+        non_scheduled_consumption = non_scheduled_hourly_consumption[0]
 
-    # Prepare features and target for appliance consumption
-    features = ['Lighting (kWh)', 'Refrigerator (kWh)', 'Washing Machine (kWh)', 'Television (kWh)',
-                'Air Conditioner (kWh)', 'Microwave (kWh)', 'Laptop (kWh)', 'Water Heater (kWh)',
-                'Dishwasher (kWh)', 'EV Charger (kWh)', 'Other Devices (kWh)']
+        # If in solar mode, use battery, otherwise, consume from the grid
+        if in_solar_mode:
+            battery_level = max(battery_level - non_scheduled_consumption, 0)
 
-    X = df[features]
-    y = df['Total (kWh)']
+        # Calculate savings when using solar mode
+        total_consumption = non_scheduled_consumption + (predicted_appliance_consumption_df[scheduled_device] if scheduled_device else 0)
+        non_solar_cost = total_consumption * tariff
+        solar_savings = non_solar_cost if in_solar_mode else 0
 
-    # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+        # Store hourly status
+        hourly_status.append({
+            "hour": f"{hour}:00 - {hour + 1}:00",
+            "current_mode": "Solar" if in_solar_mode else "Normal",
+            "battery_level (%)": (battery_level / battery_capacity_kwh) * 100,
+            "solar_savings (INR)": solar_savings,
+            "device_scheduled": scheduled_device,
+        })
 
-    # Train the model
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
+    return hourly_status
 
-    # Predict the appliance consumption for tomorrow
-    predictions = model.predict(X_test)
+# Flask routes
+@app.route('/api/predict', methods=['GET'])
+def predict():
+    predictions = predict_and_store()
+    return jsonify(predictions), 200
 
-    # Prepare data for MongoDB insertion
-    today = "21-10-2024"
-    # for live data use today = (datetime.now()).strftime("%d-%m-%Y")
-    appliance_prediction_data = [
-        {'appliance_consumption': float(prediction), 'date': today} for prediction in predictions
-    ]
+@app.route('/api/energy-optimization', methods=['GET'])
+def get_optimized_energy_data():
+    optimized_energy = energy_optimization()
+    return jsonify(optimized_energy), 200
 
-    # Store appliance consumption predictions in MongoDB
-    try:
-        appliance_prediction_collection.delete_many({'date': today})  # Clear existing data for tomorrow
-        appliance_prediction_collection.insert_many(appliance_prediction_data)
-        logging.info("Appliance consumption predictions stored successfully.")
-    except errors.PyMongoError as e:
-        logging.error("Error storing appliance predictions: %s", e)
-
-    return appliance_prediction_data
-
-@app.route('/api/predicted_tariffs', methods=['GET'])
-def get_predicted_tariffs():
-    """Fetch predicted tariffs for the next day from MongoDB."""
-    target_date = "21-10-2024"  # Static target date (You can modify this as needed)
-    try:
-        predictions = list(predicted_collection.find({'date': target_date}, {'_id': 0}))
-        if predictions:
-            logging.info(f"Fetched predictions for {target_date}: {predictions}")
-        else:
-            logging.info(f"No predictions found for {target_date}.")
-        return jsonify(predictions)
-    except errors.PyMongoError as e:
-        logging.error("Error fetching predictions: %s", e)
-        return jsonify([]), 500
-
-# You can define similar routes for solar energy and appliance consumption if needed
-
-if __name__ == '__main__':
-    # Bind the Flask app to 0.0.0.0 to allow external requests
-    app.run(host='0.0.0.0', port=5000, debug=True)
-
-
-
-
-
-
+if _name_ == '_main_':
+    app.run(debug=True)
