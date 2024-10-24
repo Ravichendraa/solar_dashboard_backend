@@ -28,9 +28,9 @@ except errors.ServerSelectionTimeoutError as e:
     logging.error("MongoDB connection failed: %s", e)
 
 # API endpoint URLs
-TARIFF_API_URL = 'http://localhost:5000/api/tariffs'
-ENERGY_API_URL = 'http://localhost:5000/api/energy-data'
-CONSUMPTION_API_URL = 'http://localhost:5000/api/consumptions'
+TARIFF_API_URL = 'https://solar-dashboard-backend-1.onrender.com/api/tariffs'
+ENERGY_API_URL = 'https://solar-dashboard-backend-1.onrender.com/api/energy-data'
+CONSUMPTION_API_URL = 'https://solar-dashboard-backend-1.onrender.com/api/consumptions'
 
 def fetch_tariff_data():
     """Fetch tariff data from the API and convert it into a DataFrame."""

@@ -9,10 +9,10 @@ const Consumption = require('./models/consumption');
 const Tariff = require('./models/tariff'); 
 const EnergyData = require('./models/energyData'); 
 
-// New models for predictions (you might need to adjust paths and model definitions)
-const PredictedTariff = require('./models/predictedTariff'); 
-const PredictedSolarEnergy = require('./models/predictedSolarEnergy'); 
-const PredictedApplianceConsumption = require('./models/predictedApplianceConsumption'); 
+// // New models for predictions (you might need to adjust paths and model definitions)
+// const PredictedTariff = require('./models/predictedTariff'); 
+// const PredictedSolarEnergy = require('./models/predictedSolarEnergy'); 
+// const PredictedApplianceConsumption = require('./models/predictedApplianceConsumption'); 
 
 dotenv.config(); // Load environment variables
 
