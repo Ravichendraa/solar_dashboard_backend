@@ -9,6 +9,7 @@ const EnergyData = require('./models/energyData');
 const PredictedTariff = require('./models/predictedTariff');
 const PredictedSolarEnergy = require('./models/predictedSolarEnergy');
 const PredictedApplianceConsumption = require('./models/predictedApplianceConsumption');
+const Savings = require('../models/Savings');
 
 // Initialize express app
 const app = express();
@@ -120,6 +121,23 @@ app.get('/api/predicted_solar_energy', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch predicted solar energy' });
   }
 });
+
+app.get('/api/savings', async (req, res) => {
+  try {
+    const savingsData = await Savings.find(); // Fetch all savings data
+
+    if (savingsData.length === 0) {
+      return res.status(404).json({ message: 'No savings data found' });
+    }
+
+    res.json(savingsData); // Send the fetched savings data
+  } catch (error) {
+    console.error('Error fetching savings data:', error);
+    res.status(500).json({ error: 'Failed to fetch savings data' });
+  }
+});
+
+
 
 
 // Handle invalid routes
