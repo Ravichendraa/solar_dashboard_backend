@@ -17,7 +17,7 @@ CORS(app)
 
 # MongoDB connection setup
 try:
-    client = MongoClient('mongodb://localhost:27017/', serverSelectionTimeoutMS=5000)
+    client = MongoClient("mongodb+srv://ravichendraa:n8UK9jMeTENnI7qX@ravi.jyrgg.mongodb.net/?retryWrites=true&w=majority&appName=ravi", serverSelectionTimeoutMS=5000)
     db = client['Luminous']
     predictions_collection = db['tariffs']
     predicted_collection = db['predicted_tariffs']  # New collection for predicted tariffs
@@ -39,8 +39,18 @@ def fetch_tariff_data():
         response.raise_for_status()
         data = response.json()
         df = pd.DataFrame(data)
-        df['DateTime'] = pd.to_datetime(df['DateTime'], format='%d-%m-%Y %H:%M:%S')  # Convert DateTime to datetime object
-        logging.info("Tariff data fetched successfully.")
+
+        # Adjust the format for two-digit year and missing seconds, parsing as much as possible
+        df['DateTime'] = pd.to_datetime(df['DateTime'], format='%d-%m-%y %H:%M', errors='coerce')
+
+        # Handle any rows where the date couldn't be parsed
+        df = df.dropna(subset=['DateTime'])
+
+        # Set the constant date (21st October 2024) while keeping the time part intact
+        constant_date = pd.Timestamp('2024-10-21')
+        df['DateTime'] = df['DateTime'].apply(lambda dt: constant_date.replace(hour=dt.hour, minute=dt.minute))
+
+        logging.info("Tariff data fetched, parsed, and date set to 21st October 2024 successfully.")
         return df
     except requests.exceptions.RequestException as e:
         logging.error("Error fetching data: %s", e)
@@ -152,8 +162,8 @@ def predict_solar_energy_and_store():
     predictions = model.predict(next_day_hours)
 
     # Prepare data for MongoDB insertion
-    today ="21-10-2024"
-    #for live data use today = (datetime.now()).strftime("%d-%m-%Y")  # Predict for next day (21st Oct 2024)
+    today = "21-10-2024"
+    # for live data use today = (datetime.now()).strftime("%d-%m-%Y")
     solar_prediction_data = [
         {'hour': i, 'solar_energy_generation': float(predictions[i]), 'date': today} for i in range(24)
     ]
@@ -179,8 +189,9 @@ def predict_appliance_consumption_and_store():
     features = ['Lighting (kWh)', 'Refrigerator (kWh)', 'Washing Machine (kWh)', 'Television (kWh)',
                 'Air Conditioner (kWh)', 'Microwave (kWh)', 'Laptop (kWh)', 'Water Heater (kWh)',
                 'Dishwasher (kWh)', 'EV Charger (kWh)', 'Other Devices (kWh)']
+
     X = df[features]
-    y = df[features]
+    y = df['Total (kWh)']
 
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
@@ -189,188 +200,43 @@ def predict_appliance_consumption_and_store():
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
 
-    # Predict for the next day (21st Oct 2024)
-    predictions = model.predict([X.iloc[-1]])  # Predicting based on the last day's data
+    # Predict the appliance consumption for tomorrow
+    predictions = model.predict(X_test)
 
     # Prepare data for MongoDB insertion
-    next_day ="21-10-2024"
-    #for live data use next_day = (datetime.now()).strftime("%d-%m-%Y")
-    appliance_prediction_data = {
-        'date': next_day,
-        'Lighting (kWh)': float(predictions[0][0]),
-        'Refrigerator (kWh)': float(predictions[0][1]),
-        'Washing Machine (kWh)': float(predictions[0][2]),
-        'Television (kWh)': float(predictions[0][3]),
-        'Air Conditioner (kWh)': float(predictions[0][4]),
-        'Microwave (kWh)': float(predictions[0][5]),
-        'Laptop (kWh)': float(predictions[0][6]),
-        'Water Heater (kWh)': float(predictions[0][7]),
-        'Dishwasher (kWh)': float(predictions[0][8]),
-        'EV Charger (kWh)': float(predictions[0][9]),
-        'Other Devices (kWh)': float(predictions[0][10])
-    }
+    today = "21-10-2024"
+    # for live data use today = (datetime.now()).strftime("%d-%m-%Y")
+    appliance_prediction_data = [
+        {'appliance_consumption': float(prediction), 'date': today} for prediction in predictions
+    ]
 
     # Store appliance consumption predictions in MongoDB
     try:
-        appliance_prediction_collection.delete_many({'date': next_day})  # Clear existing data for tomorrow
-        appliance_prediction_collection.insert_one(appliance_prediction_data)
+        appliance_prediction_collection.delete_many({'date': today})  # Clear existing data for tomorrow
+        appliance_prediction_collection.insert_many(appliance_prediction_data)
         logging.info("Appliance consumption predictions stored successfully.")
     except errors.PyMongoError as e:
-        logging.error("Error storing appliance consumption predictions: %s", e)
+        logging.error("Error storing appliance predictions: %s", e)
 
     return appliance_prediction_data
 
 @app.route('/api/predicted_tariffs', methods=['GET'])
 def get_predicted_tariffs():
     """Fetch predicted tariffs for the next day from MongoDB."""
-    target_date = "21-10-2024" 
-    #for live data use target_date = (datetime.now()).strftime("%d-%m-%Y")
+    target_date = "21-10-2024"  # Static target date (You can modify this as needed)
     try:
         predictions = list(predicted_collection.find({'date': target_date}, {'_id': 0}))
+        if predictions:
+            logging.info(f"Fetched predictions for {target_date}: {predictions}")
+        else:
+            logging.info(f"No predictions found for {target_date}.")
         return jsonify(predictions)
     except errors.PyMongoError as e:
         logging.error("Error fetching predictions: %s", e)
         return jsonify([]), 500
 
-@app.route('/api/predicted_solar_energy', methods=['GET'])
-def get_predicted_solar_energy():
-    """Fetch predicted solar energy for the next day from MongoDB."""
-    target_date = "21-10-2024" 
-    #for live data use target_date = (datetime.now()).strftime("%d-%m-%Y")
-    try:
-        predictions = list(solar_prediction_collection.find({'date': target_date}, {'_id': 0}))
-        return jsonify(predictions)
-    except errors.PyMongoError as e:
-        logging.error("Error fetching solar predictions: %s", e)
-        return jsonify([]), 500
-
-@app.route('/api/predicted_appliance_consumption', methods=['GET'])
-def get_predicted_appliance_consumption():
-    """Fetch predicted appliance consumption for the next day from MongoDB."""
-    target_date = "21-10-2024" 
-    #for live data use target_date = (datetime.now()).strftime("%d-%m-%Y")
-    try:
-        predictions = appliance_prediction_collection.find_one({'date': target_date}, {'_id': 0})
-        return jsonify(predictions) if predictions else jsonify({})
-    except errors.PyMongoError as e:
-        logging.error("Error fetching appliance consumption predictions: %s", e)
-        return jsonify({}), 500
-    
-@app.route('/api/schedule', methods=['GET'])
-def get_optimized_schedule():
-    """API endpoint to get optimized appliance schedule."""
-    tariff_data = fetch_tariff_data()
-    solar_data = fetch_energy_data()
-    
-    # Fetch predicted appliance consumption from the database
-    appliance_prediction = appliance_prediction_collection.find_one({'date': "21-10-2024"})  # Use your desired date
-    if appliance_prediction is None:
-        return jsonify({"error": "No appliance consumption data found."}), 400
-    
-    # Convert the appliance prediction to a DataFrame for processing
-    consumption_data = pd.DataFrame([appliance_prediction])
-
-    if tariff_data.empty or solar_data.empty or consumption_data.empty:
-        return jsonify({"error": "Insufficient data for optimization."}), 400
-
-    schedule, total_savings = optimize_appliance_schedule(tariff_data, solar_data, consumption_data)
-    return jsonify({"schedule": schedule, "total_savings": total_savings}), 200
-
-import random
-
-
-def optimize_appliance_schedule(tariff_data, solar_data, consumption_data):
-    """Optimize appliance schedule based on tariff and solar generation data."""
-    total_savings = 0
-    schedule = []
-    battery_capacity = 10  # kWh
-    current_battery = random.uniform(0, battery_capacity)  # Random initial battery charge
-
-    # Extract consumption for specific appliances
-    appliances = {
-        'Laptop': consumption_data['Laptop (kWh)'].values[0],
-        'Dishwasher': consumption_data['Dishwasher (kWh)'].values[0],
-        'EV Charger': consumption_data['EV Charger (kWh)'].values[0],
-        'Washing Machine': consumption_data['Washing Machine (kWh)'].values[0],
-    }
-
-    # Track scheduled appliances to avoid scheduling them multiple times
-    scheduled_appliances = set()
-    emergency_threshold = 2  # Minimum battery level to keep for emergencies
-    current_mode = 'normal'  # Default mode
-    threshold_tariff = 5  # Example threshold for tariff to switch modes
-
-    # Loop through each hour to optimize the schedule
-    for hour in range(24):
-        hour_tariff = tariff_data.loc[hour, 'Tariff (INR/kWh)']
-        solar_energy = solar_data.loc[hour, 'solarEnergyGeneration']
-
-        # If it's solar generation time, add solar energy to the current battery capacity
-        if solar_energy > 0:
-            current_battery = min(battery_capacity, current_battery + solar_energy)
-
-        hour_schedule = {}
-        current_savings = 0
-
-        # Determine the operating mode based on tariff
-        if hour_tariff > threshold_tariff:
-            current_mode = 'solar'
-        else:
-            current_mode = 'normal'
-
-        # Schedule appliances based on the current mode and tariff conditions
-        if current_mode == 'normal':
-            # Schedule devices in normal mode (low tariff)
-            for appliance, consumption in appliances.items():
-                if appliance not in scheduled_appliances and consumption <= current_battery:
-                    hour_schedule[appliance] = {
-                        "status": "Run",
-                        "start_hour": hour,
-                        "end_hour": hour + 1,
-                        "consumption": consumption
-                    }
-                    total_savings += (hour_tariff * consumption)  # Saving calculation
-                    current_battery -= consumption  # Update battery charge
-                    scheduled_appliances.add(appliance)
-                    break  # Schedule only one appliance per hour
-
-        elif current_mode == 'solar':
-            # In solar mode, use solar energy and schedule devices if they can be powered
-            for appliance, consumption in appliances.items():
-                if appliance not in scheduled_appliances and consumption <= current_battery - emergency_threshold:
-                    hour_schedule[appliance] = {
-                        "status": "Run",
-                        "start_hour": hour,
-                        "end_hour": hour + 1,
-                        "consumption": consumption
-                    }
-                    current_battery -= consumption  # Update battery charge
-                    scheduled_appliances.add(appliance)
-                    # Add savings from using solar energy instead of grid
-                    current_savings += (hour_tariff * consumption)  # Cost of using grid power
-                    break  # Schedule only one appliance per hour
-
-        # Calculate the current battery charge percentage for the hour
-        current_battery_percentage = (current_battery / battery_capacity) * 100
-
-        # Store hourly schedule details
-        schedule.append({
-            "hour": hour,
-            "current_mode": current_mode,
-            "current_savings": current_savings,
-            "current_battery_charge_percentage": current_battery_percentage,
-            "hour_schedule": hour_schedule,
-            "remaining_battery_capacity": current_battery
-        })
-
-    return schedule, total_savings
-
-
-
+# You can define similar routes for solar energy and appliance consumption if needed
 
 if __name__ == '__main__':
-    # Predict and store tariffs, solar energy, and appliance consumption when the server starts
-    predict_and_store()
-    predict_solar_energy_and_store()
-    predict_appliance_consumption_and_store()
-    app.run(debug=True)
+    # Bind the Flask app to 0.0.0.0 to allow external requests
+    app.run(host='0.0.0.0', port=5000, debug=True)
