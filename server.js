@@ -90,14 +90,22 @@ app.get('/api/consumptions', async (req, res) => {
 // Predicted Solar Energy route
 app.get('/api/predicted_solar_energy', async (req, res) => {
   try {
-    const { date } = req.query;
+    const date = '21-10-2024';  // Fixed date for fetching predictions
+
+    // Query the database for records matching the fixed date
     const predictions = await PredictedSolarEnergy.find({ date });
-    res.json(predictions);
+
+    if (predictions.length === 0) {
+      return res.status(404).json({ message: 'No predictions found for the given date' });
+    }
+
+    res.json(predictions); // Send the fetched predictions
   } catch (error) {
     console.error('Error fetching predicted solar energy:', error);
     res.status(500).json({ error: 'Failed to fetch predicted solar energy' });
   }
 });
+
 
 // Handle invalid routes
 app.use((req, res) => {
