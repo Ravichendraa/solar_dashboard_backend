@@ -9,7 +9,7 @@ const EnergyData = require('./models/energyData');
 const PredictedTariff = require('./models/predictedTariff');
 const PredictedSolarEnergy = require('./models/predictedSolarEnergy');
 const PredictedApplianceConsumption = require('./models/predictedApplianceConsumption');
-const Savings = require('../models/Savings');
+const Savings = require('./models/savings');
 
 // Initialize express app
 const app = express();
