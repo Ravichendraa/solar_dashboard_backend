@@ -9,6 +9,11 @@ const Consumption = require('./models/consumption');
 const Tariff = require('./models/tariff'); 
 const EnergyData = require('./models/energyData'); 
 
+// New models for predictions (you might need to adjust paths and model definitions)
+const PredictedTariff = require('./models/predictedTariff'); 
+const PredictedSolarEnergy = require('./models/predictedSolarEnergy'); 
+const PredictedApplianceConsumption = require('./models/predictedApplianceConsumption'); 
+
 dotenv.config(); // Load environment variables
 
 const app = express();
@@ -70,6 +75,51 @@ app.get('/api/tariffs', async (req, res) => {
   } catch (err) {
     console.error('Error fetching tariff data:', err);
     res.status(500).json({ error: 'Failed to fetch tariff data' });
+  }
+});
+
+// Route to get predicted tariffs
+app.get('/api/predicted_tariffs', async (req, res) => {
+  try {
+    const predictions = await PredictedTariff.find({ date: "21-10-2024" }); // Adjust date if necessary
+    console.log('Fetched Predicted Tariffs:', predictions);
+    if (!predictions.length) {
+      return res.status(404).json({ message: 'No predicted tariffs found' });
+    }
+    res.json(predictions);
+  } catch (err) {
+    console.error('Error fetching predicted tariffs:', err);
+    res.status(500).json({ error: 'Failed to fetch predicted tariffs' });
+  }
+});
+
+// Route to get predicted solar energy
+app.get('/api/predicted_solar_energy', async (req, res) => {
+  try {
+    const predictions = await PredictedSolarEnergy.find({ date: "21-10-2024" }); // Adjust date if necessary
+    console.log('Fetched Predicted Solar Energy:', predictions);
+    if (!predictions.length) {
+      return res.status(404).json({ message: 'No predicted solar energy found' });
+    }
+    res.json(predictions);
+  } catch (err) {
+    console.error('Error fetching predicted solar energy:', err);
+    res.status(500).json({ error: 'Failed to fetch predicted solar energy' });
+  }
+});
+
+// Route to get predicted appliance consumption
+app.get('/api/predicted_appliance_consumption', async (req, res) => {
+  try {
+    const predictions = await PredictedApplianceConsumption.find({ date: "21-10-2024" }); // Adjust date if necessary
+    console.log('Fetched Predicted Appliance Consumption:', predictions);
+    if (!predictions.length) {
+      return res.status(404).json({ message: 'No predicted appliance consumption found' });
+    }
+    res.json(predictions);
+  } catch (err) {
+    console.error('Error fetching predicted appliance consumption:', err);
+    res.status(500).json({ error: 'Failed to fetch predicted appliance consumption' });
   }
 });
 
