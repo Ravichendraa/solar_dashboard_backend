@@ -1,0 +1,2 @@
+_id,date,Lighting (kWh),Refrigerator (kWh),Washing Machine (kWh),Television (kWh),Air Conditioner (kWh),Microwave (kWh),Laptop (kWh),Water Heater (kWh),Dishwasher (kWh),EV Charger (kWh),Other Devices (kWh)
+6719ec88f8b9a10fe8eee308,21-10-24,2.346,1.792,0.657,1.159,4.902,0.755,0.493,3.99,1.429112834,8.921227932,2.107
