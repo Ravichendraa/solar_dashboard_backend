@@ -1,3 +1,10 @@
+Our mock data is in data_used folder:
+in that we have 7 files 
+
+these are Tariff.csv, EnergyData.csv,Consumption.csv
+
+and predicted outcomes are in predicted_tariffs.csv,predicted_solar_energy.csv,predicted_appliance_consumption.csv,Savings.csv these are generated through app.py
+
 These are our api endpoints :
 
 For recent-tariffs: 
