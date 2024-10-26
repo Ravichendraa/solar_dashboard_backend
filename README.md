@@ -1,3 +1,5 @@
+#  NOTE :  If the backend isn't working on the homepage, try navigating to another menu and then returning to the homepage to reload it. If you're still experiencing issues with Netlifyapp, please contact us via email for assistance.
+
 Our mock data is in data_used folder:
 in that we have 7 files 
 
