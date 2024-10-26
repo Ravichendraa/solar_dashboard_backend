@@ -1,3 +1,12 @@
+#  NOTE :  If the backend isn't working on the homepage, try navigating to another menu and then returning to the homepage to reload it. If you're still experiencing issues with Netlifyapp, please contact us via email for assistance.
+
+Our mock data is in data_used folder:
+in that we have 7 files 
+
+these are Tariff.csv, EnergyData.csv,Consumption.csv
+
+and predicted outcomes are in predicted_tariffs.csv,predicted_solar_energy.csv,predicted_appliance_consumption.csv,Savings.csv these are generated through app.py
+
 These are our api endpoints :
 
 For recent-tariffs: 
