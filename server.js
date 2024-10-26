@@ -32,12 +32,23 @@ mongoose
 // Routes
 app.get('/api/tariffs', async (req, res) => {
   try {
+    // Fetch all tariffs
     const tariffs = await Tariff.find({});
-    res.json(tariffs);
+  
+    // Sort tariffs by parsing `DateTime` in `dd-mm-yy hh:mm` format to ISO date for accurate sorting
+    tariffs.sort((a, b) => {
+      const dateA = new Date(a.DateTime.replace(/(\d{2})-(\d{2})-(\d{2})/, '20$3-$2-$1'));
+      const dateB = new Date(b.DateTime.replace(/(\d{2})-(\d{2})-(\d{2})/, '20$3-$2-$1'));
+      return dateA - dateB;
+    });
+  
+    res.json(tariffs); // Send the sorted tariffs
   } catch (error) {
     console.error('Error fetching tariffs:', error);
     res.status(500).json({ error: 'Failed to fetch tariffs' });
   }
+  
+  
 });
 
 
@@ -65,12 +76,22 @@ app.get('/api/predicted_tariffs', async (req, res) => {
 
 app.get('/api/energy-data', async (req, res) => {
   try {
+    // Fetch all energy data
     const energyData = await EnergyData.find({});
-    res.json(energyData);
+  
+    // Sort energy data by parsing `sendDate` in `dd-mm-yy hh:mm` format to ISO date for accurate sorting
+    energyData.sort((a, b) => {
+      const dateA = new Date(a.sendDate.replace(/(\d{2})-(\d{2})-(\d{2})/, '20$3-$2-$1'));
+      const dateB = new Date(b.sendDate.replace(/(\d{2})-(\d{2})-(\d{2})/, '20$3-$2-$1'));
+      return dateA - dateB;
+    });
+  
+    res.json(energyData); // Send the sorted data
   } catch (error) {
     console.error('Error fetching energy data:', error);
     res.status(500).json({ error: 'Failed to fetch energy data' });
   }
+  
 });
 
 
@@ -108,34 +129,46 @@ app.get('/api/consumptions', async (req, res) => {
 app.get('/api/predicted_solar_energy', async (req, res) => {
   try {
     const date = '21-10-2024';  // Fixed date for fetching predictions
-
+  
     // Query the database for records matching the fixed date
     const predictions = await PredictedSolarEnergy.find({ date });
-
+  
     if (predictions.length === 0) {
       return res.status(404).json({ message: 'No predictions found for the given date' });
     }
-
-    res.json(predictions); // Send the fetched predictions
+  
+    // Sort predictions by the 'hour' field in ascending order
+    predictions.sort((a, b) => a.hour - b.hour);
+  
+    res.json(predictions); // Send the sorted predictions
   } catch (error) {
     console.error('Error fetching predicted solar energy:', error);
     res.status(500).json({ error: 'Failed to fetch predicted solar energy' });
   }
+  
 });
 
 app.get('/api/savings', async (req, res) => {
   try {
     const savingsData = await Savings.find(); // Fetch all savings data
-
+  
     if (savingsData.length === 0) {
       return res.status(404).json({ message: 'No savings data found' });
     }
-
-    res.json(savingsData); // Send the fetched savings data
+  
+    // Sort savingsData by extracting the starting hour
+    savingsData.sort((a, b) => {
+      const hourA = parseInt(a.hour.split(':')[0]);
+      const hourB = parseInt(b.hour.split(':')[0]);
+      return hourA - hourB;
+    });
+  
+    res.json(savingsData); // Send the sorted savings data
   } catch (error) {
     console.error('Error fetching savings data:', error);
     res.status(500).json({ error: 'Failed to fetch savings data' });
   }
+  
 });
 
 
